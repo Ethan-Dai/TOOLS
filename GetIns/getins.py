@@ -29,7 +29,7 @@ else:
 #截取汇编指令所在列
 cutfile = inputfile+".cut"
 ans="Y"
-if os.path.exists(dumpfile):
+if os.path.exists(cutfile):
 	ans = input(".cut file detected, need update? [Y/n]: ")
 if ans != "n":
 	os.system("cut -f 2 %s > %s" %(dumpfile, cutfile))
