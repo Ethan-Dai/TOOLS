@@ -1,6 +1,6 @@
 # LogView
-* a tool to view logs
-* it can float on toplayer of your windows
+* a tool to view logs.
+* it can float on toplayer of your windows.
 * it's easy to add command to it, for view commonly used log.
 
 # GetIns
