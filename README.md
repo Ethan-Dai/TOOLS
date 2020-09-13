@@ -4,8 +4,8 @@
 * it's easy to add commands to it, for viewing commonly used logs.
 
 # GetIns
-* a tool to collect which instructions are used in the ELF file
-* It should can be disassembled by llvm-objdump (or you can change the tool in getins.py)
+* a tool to collect which instructions are used in the ELF file.
+* It should can be disassembled by llvm-objdump (or you can change the tool in getins.py).
 
 
 
