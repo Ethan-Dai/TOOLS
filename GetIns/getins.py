@@ -3,7 +3,8 @@ import sys
 import os
 import re
 
-readlines = 0
+linenum = 0
+unknown = 0
 all_ins = {}
 
 if len(sys.argv) < 2:
@@ -37,7 +38,10 @@ else:
 	print("warning: .cut file not update!")
 
 for line in open(cutfile):
-	readlines = readlines + 1
+	linenum = linenum + 1
+	if line == "<unknown>\n":
+		unknown = unknown + 1
+		print("warning: unknown instruction found in line: " + str(linenum))
 	a_z = re.findall(r"^[a-z]+$", line) #检查是否为汇编指令
 	if len(a_z) == 1:
 		ins = a_z[0]
@@ -46,15 +50,16 @@ for line in open(cutfile):
 		else:
 			all_ins[ins] = 1
 ins_times=sorted(all_ins.items(), key=lambda x:x[0])
-msg = str(len(ins_times)) + " kinds of instruction find in " + str(readlines) + " lines:\n"
+msg = str(len(ins_times)) + " kinds of instruction find in " + str(linenum) + " lines\n"
+msg += str(unknown) + " unknown instctions\n"
 print(msg)
 insfile = inputfile+".ins"
 file=open(insfile,'w')  
 file.write(msg+"\n") 
 
 for _ins_times in ins_times:
-	if '-c' in sys.argv:
-		file.write(_ins_times[0]+"\t\t\t"+str(_ins_times[1])+"\n")
+	if '-s' not in sys.argv:
+		file.write("{: <15}".format(_ins_times[0])+"\t"+str(_ins_times[1])+"\n")
 	else:
 		file.write(str(_ins_times[0])+"\n")
 file.close() 

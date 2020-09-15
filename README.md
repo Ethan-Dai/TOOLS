@@ -7,5 +7,6 @@
 * a tool to collect which instructions are used in the ELF file.
 * It should can be disassembled by llvm-objdump (or you can change the tool in getins.py).
 
-
+# CmpIns
+* a tool that can find  out the diffrences between .ins file(can be created by GetIns tool)
 
