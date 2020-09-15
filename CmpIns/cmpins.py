@@ -51,7 +51,7 @@ for ins_deta in diff_sorted:
 		file.write("{: <15}".format(ins_deta[0])+"\t" + str(ins_deta[1]) +" (disapper)\n" )
 	else:
 		file.write("{: <15}".format(ins_deta[0])+"\t" + str(ins_deta[1]) +"\n" )
-
+file.close()
 
 
 
