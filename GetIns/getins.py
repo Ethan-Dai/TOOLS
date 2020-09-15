@@ -4,10 +4,10 @@ import os
 import re
 
 readlines = 0
-all_ins = []
+all_ins = {}
 
-if len(sys.argv) != 2:
-	print("useage: ./getins.py file")
+if len(sys.argv) < 2:
+	print("usage: ./getins.py file")
 	sys.exit(-1)
 
 if os.path.exists(sys.argv[1]):
@@ -41,15 +41,20 @@ for line in open(cutfile):
 	a_z = re.findall(r"^[a-z]+$", line) #检查是否为汇编指令
 	if len(a_z) == 1:
 		ins = a_z[0]
-		if ins not in all_ins:
-			all_ins.append(ins)
-all_ins.sort()
-msg = str(len(all_ins)) + " kinds of instctions find in " + str(readlines) + " lines:\n"
+		if ins in all_ins:
+			all_ins[ins] = all_ins[ins] +1
+		else:
+			all_ins[ins] = 1
+ins_times=sorted(all_ins.items(), key=lambda x:x[0])
+msg = str(len(ins_times)) + " kinds of instruction find in " + str(readlines) + " lines:\n"
 print(msg)
-print(all_ins)
 insfile = inputfile+".ins"
 file=open(insfile,'w')  
 file.write(msg+"\n") 
-for _ins in all_ins:
-	file.write(str(_ins)+"\n")
+
+for _ins_times in ins_times:
+	if '-c' in sys.argv:
+		file.write(_ins_times[0]+"\t\t\t"+str(_ins_times[1])+"\n")
+	else:
+		file.write(str(_ins_times[0])+"\n")
 file.close() 
