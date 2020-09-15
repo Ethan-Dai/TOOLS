@@ -42,7 +42,7 @@ for ins in all_ins:
 	ins_diff[ins] = times2 - times1
 
 diff_sorted = sorted(ins_diff.items(), key=lambda x:x[1], reverse=True)
-difffile = file1 + file2 + ".diff"
+difffile = file1 + "_" + file2 + ".diff"
 file=open(difffile,'w')
 for ins_deta in diff_sorted:
 	if ins_deta[0] not in file1_ins:
@@ -51,7 +51,7 @@ for ins_deta in diff_sorted:
 		file.write("{: <15}".format(ins_deta[0])+"\t" + str(ins_deta[1]) +" (disapper)\n" )
 	else:
 		file.write("{: <15}".format(ins_deta[0])+"\t" + str(ins_deta[1]) +"\n" )
-file.close()
+file.close() 
 
 
 
