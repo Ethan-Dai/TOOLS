@@ -3,6 +3,9 @@ import sys
 import os
 import re
 
+dumptool = "llvm-objdump"
+inscol = "2"
+
 linenum = 0
 unknown = 0
 all_ins = {}
@@ -14,28 +17,28 @@ if len(sys.argv) < 2:
 if os.path.exists(sys.argv[1]):
 	inputfile = sys.argv[1]
 else:
-	print("file not exist!")
+	print(sys.argv[1] + " not exist!")
 	sys.exit(-1)
 
 #反汇编
 dumpfile = inputfile+".dump"
 ans="Y"
 if os.path.exists(dumpfile):
-	ans = input(".dump file detected, need update? [Y/n]: ")
+	ans = input(dumpfile + " detected, need update? [Y/n]: ")
 if ans != "n":
-	os.system("llvm-objdump -d %s > %s" %(inputfile, dumpfile))
+	os.system(dumptool + " -d %s > %s" %(inputfile, dumpfile))
 else:
-	print("warning: .dump file not update!")
+	print("warning: " + dumpfile + " not update!")
 
 #截取汇编指令所在列
 cutfile = inputfile+".cut"
 ans="Y"
 if os.path.exists(cutfile):
-	ans = input(".cut file detected, need update? [Y/n]: ")
+	ans = input(cutfile + " detected, need update? [Y/n]: ")
 if ans != "n":
-	os.system("cut -f 2 %s > %s" %(dumpfile, cutfile))
+	os.system("cut -f " + inscol + " %s > %s" %(dumpfile, cutfile))
 else:
-	print("warning: .cut file not update!")
+	print("warning: " + cutfile + "not update!")
 
 for line in open(cutfile):
 	linenum = linenum + 1
