@@ -16,5 +16,5 @@ options:
 
 usage: ./getins.py elffile1 elffile2
 options:  
--new : list the instructions that appered in elfflie2 and not in elffile1.
--dis : list the instructions that appered in elfflie1 and not in elffile2.
+-new : list the instructions that appered in elfflie2 and not in elffile1.  
+-dis : list the instructions that appered in elfflie1 and not in elffile2.  
