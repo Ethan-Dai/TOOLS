@@ -14,7 +14,7 @@ options:
 # CmpIns
 * a tool that can find  out the diffrences between .ins file(can be created by GetIns tool)
 
-usage: ./getins.py elffile1 elffile2
+usage: ./getins.py elffile1(**without '.ins'**) elffile2
 options:  
 -new : list the instructions that appered in elfflie2 and not in elffile1.  
 -dis : list the instructions that appered in elfflie1 and not in elffile2.  
