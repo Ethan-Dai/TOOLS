@@ -9,12 +9,12 @@
 
 usage: ./getins.py elffile
 options:
--s : not list how times that instructions appear.
+	-s : not list how times that instructions appear.
 
 # CmpIns
 * a tool that can find  out the diffrences between .ins file(can be created by GetIns tool)
 
 usage: ./getins.py elffile1 elffile2
 options:
--new : list the instructions that appered in elfflie2 and not in elffile1.
--dis : list the instructions that appered in elfflie1 and not in elffile2.
+	-new : list the instructions that appered in elfflie2 and not in elffile1.
+	-dis : list the instructions that appered in elfflie1 and not in elffile2.
