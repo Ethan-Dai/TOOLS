@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+import sys
+import os
+
+flags = []
+
+if len(sys.argv) < 2:
+	print("usage: getflags file")
+	sys.exit(-1)
+
+if os.path.exists(sys.argv[1]):
+	flagfile = sys.argv[1]
+else:
+	print(sys.argv[1] + " not exist!")
+	sys.exit(-1)
+
+
+for line in open(flagfile):
+	for temp_flag in line.split(" -"):
+		flag = "-" + temp_flag
+		flags.append(flag)
+
+flags.sort()
+
+outfile = flagfile+".flag"
+outfile=open(outfile,'w')
+
+for flag in flags:
+	outfile.write(flag + "\n")
+
+outfile.close()

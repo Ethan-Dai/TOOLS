@@ -9,7 +9,7 @@
 
 usage: ./getins.py elffile  
 options:  
--s : not list how times that instructions appear.
+-s : not list how times that instructions appear.  
 
 # CmpIns
 * a tool that can find  out the diffrences between .ins file(can be created by GetIns tool)
