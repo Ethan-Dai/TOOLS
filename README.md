@@ -18,3 +18,8 @@ usage: ./getins.py elffile1(**without '.ins'**) elffile2
 options:  
 -new : list the instructions that appered in elfflie2 and not in elffile1.  
 -dis : list the instructions that appered in elfflie1 and not in elffile2.  
+
+# fdump
+objdump a single function in ELF file  
+usage: fdump [ELFfile] [func]  
+ 

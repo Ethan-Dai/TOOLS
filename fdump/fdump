@@ -1,0 +1,32 @@
+#!/bin/bash
+
+NM=llvm-nm
+OBJDUMP=llvm-objdump
+
+if [ $# -ne 2 ]; then
+	echo "usage: fdump [ELFfile] [func]"
+	exit
+fi
+
+sym=`$NM $1 --print-size | grep -w $2`
+sym_num=`echo "$sym" | wc -l`
+echo $sym
+
+if [ "$sym" = "" ]; then
+	echo "function $2 not found"
+	exit
+elif [ $sym_num -gt 1 ]; then
+	echo "more than one symbol detected, please check the function name"
+	exit
+else
+	func_start=`echo $sym | cut -d " " -f 1`
+	func_size=`echo $sym | cut -d " " -f 2`
+	
+	#cannot perform 64-bit addition calculations in shell
+	addr_base=${func_start:0:6}
+	addr_offset=${func_start:6}
+	temp=`printf "%x" $((0x$addr_offset + 0x$func_size))`
+	func_end=$addr_base$temp
+	
+	$OBJDUMP $1 -d --start-address=0x$func_start --stop-address=0x$func_end
+fi
