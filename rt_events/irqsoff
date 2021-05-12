@@ -1,0 +1,92 @@
+#!/usr/bin/python3
+
+import numpy as np
+import sys
+from bokeh.plotting import figure, show, output_file, save
+from bokeh.models.tools import HoverTool, PanTool, ResetTool, BoxZoomTool
+
+from parse import parse_rawdata
+
+CPU_MAX = 4
+
+# parse rawdata
+#(cpu, type, timestamp, ip, parent_ip)
+events = parse_rawdata("data.b")
+
+# save event index
+cpus_events= []
+for cpu in range(CPU_MAX):
+	cpu_events = []
+	for i in range(len(events)):
+		if events[i][0] == cpu:
+			cpu_events.append(i)
+	cpus_events.append(cpu_events)
+
+# find event pair, such as irq_off and irq_on on a cpu, by and caculate the
+# interval between the two events.
+# format: (intervel, index_off, index_on)
+cpus_event_pairs = []
+for cpu in range(CPU_MAX):
+	cpu_event_pairs = []
+	cpu_events = cpus_events[cpu]
+	events_num = len(cpu_events)
+	j = -1
+	for i in range(events_num):
+		index = cpu_events[i]
+		if events[index][1] == 0 and i > j: # type == hardirq_disable
+			index_off = index
+			for j in range(i, events_num):
+				index = cpu_events[j]
+				if events[index][1] == 1:
+					index_on = index
+					interval = events[index_on][2] - events[index_off][2]
+					event_pair = [interval, index_off, index_on]
+					cpu_event_pairs.append(event_pair)
+					break
+	cpus_event_pairs.append(cpu_event_pairs)
+
+# color map
+colors = ('dodgerblue','orange', 'coral', 'cyan', 'olive', 'red', 'blue')
+
+#histogram
+w=0.8/CPU_MAX
+levels = ['1~10ns', '10~100ns', '0.1~1us', '1~10us', '10~100us', '0.1~1ms', '1~10ms', '10~100ms', '0.1~1s', '>1s']
+hist = figure(title="IRQSOFF", 
+	      x_range=levels,
+              x_axis_label="interval", 
+	      y_axis_label="times",
+              sizing_mode = "stretch_both",
+	      tools=[HoverTool()],
+              tooltips="@top times",)
+
+for cpu in range(CPU_MAX):
+	l_num = np.zeros(10)
+	for event_pair in cpus_event_pairs[cpu]:
+		level = int(np.log10(event_pair[0]))
+		level = 9 if level > 9 else level
+		l_num[level] += 1
+	x = list(range(10))
+	x[:] = [a + (cpu+0.5)*w + 0.1 for a in x]
+	label = "CPU" + str(cpu)
+	hist.vbar(x=x, top=l_num, width=w, legend_label=label, color=colors[cpu])
+output_file("irqsoff-hist.html")
+save(hist)
+		
+#scat
+scat = figure(title="IRQSOFF",
+	      x_axis_label="time",
+	      y_axis_label="log(interval_ns)", 
+	      sizing_mode = "stretch_height",
+	      plot_width=len(events)//10,
+	      tools=[BoxZoomTool(), ResetTool(), PanTool(dimensions="width"), HoverTool()])
+
+for cpu in range(CPU_MAX):
+	if cpus_event_pairs[cpu]:
+		event_pairs = np.array(cpus_event_pairs[cpu])
+		label = "CPU" + str(cpu)
+		x = event_pairs[:,1]
+		y = np.log10(event_pairs[:,0])
+		scat.circle(x, y, size=2*y, legend_label=label, color=colors[cpu], alpha=0.5)
+
+output_file("irqsoff-scat.html")
+save(scat)

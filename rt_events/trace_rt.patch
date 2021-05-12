@@ -1,0 +1,236 @@
+From c9c6544fb5063cbfba22b2755b37a0a5378185d9 Mon Sep 17 00:00:00 2001
+From: Ben Dai <ben.dai@unisoc.com>
+Date: Thu, 6 May 2021 21:44:15 +0800
+Subject: [PATCH] =?UTF-8?q?[=E6=A6=82=E8=A6=81]:=20trace=5Frt?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[功能描述]:
+---
+ kernel/trace/Makefile           |   1 +
+ kernel/trace/trace.h            |   8 ++
+ kernel/trace/trace_preemptirq.c |   2 +
+ kernel/trace/trace_rt.c         | 162 ++++++++++++++++++++++++++++++++
+ 4 files changed, 173 insertions(+)
+ create mode 100644 kernel/trace/trace_rt.c
+
+diff --git a/kernel/trace/Makefile b/kernel/trace/Makefile
+index bb10341732ae..d990ffd1ae0b 100644
+--- a/kernel/trace/Makefile
++++ b/kernel/trace/Makefile
+@@ -85,5 +85,6 @@ obj-$(CONFIG_PROBE_EVENTS) += trace_probe.o
+ obj-$(CONFIG_UPROBE_EVENTS) += trace_uprobe.o
+ 
+ obj-$(CONFIG_TRACEPOINT_BENCHMARK) += trace_benchmark.o
++obj-y += trace_rt.o
+ 
+ libftrace-y := ftrace.o
+diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
+index fc3aa81a43e3..627a5c1e7d7f 100644
+--- a/kernel/trace/trace.h
++++ b/kernel/trace/trace.h
+@@ -2024,4 +2024,12 @@ static __always_inline void trace_iterator_reset(struct trace_iterator *iter)
+ 	iter->pos = -1;
+ }
+ 
++#if 1
++void rt_hardirqs_on(unsigned long a0, unsigned long a1);
++void rt_hardirqs_off(unsigned long a0, unsigned long a1);
++#else
++static inline void rt_hardirqs_on(unsigned long a0, unsigned long a1) { }
++static inline void rt_hardirqs_off(unsigned long a0, unsigned long a1) { }
++#endif
++
+ #endif /* _LINUX_KERNEL_TRACE_H */
+diff --git a/kernel/trace/trace_preemptirq.c b/kernel/trace/trace_preemptirq.c
+index 26b06b09c9f6..9a0194e6501e 100644
+--- a/kernel/trace/trace_preemptirq.c
++++ b/kernel/trace/trace_preemptirq.c
+@@ -25,6 +25,7 @@ void trace_hardirqs_on(void)
+ 		if (!in_nmi())
+ 			trace_irq_enable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
+ 		tracer_hardirqs_on(CALLER_ADDR0, CALLER_ADDR1);
++		rt_hardirqs_on(CALLER_ADDR0, CALLER_ADDR1);
+ 		this_cpu_write(tracing_irq_cpu, 0);
+ 	}
+ 
+@@ -38,6 +39,7 @@ void trace_hardirqs_off(void)
+ 	if (!this_cpu_read(tracing_irq_cpu)) {
+ 		this_cpu_write(tracing_irq_cpu, 1);
+ 		tracer_hardirqs_off(CALLER_ADDR0, CALLER_ADDR1);
++		rt_hardirqs_off(CALLER_ADDR0, CALLER_ADDR1);
+ 		if (!in_nmi())
+ 			trace_irq_disable_rcuidle(CALLER_ADDR0, CALLER_ADDR1);
+ 	}
+diff --git a/kernel/trace/trace_rt.c b/kernel/trace/trace_rt.c
+new file mode 100644
+index 000000000000..0d85a195c983
+--- /dev/null
++++ b/kernel/trace/trace_rt.c
+@@ -0,0 +1,162 @@
++#include <linux/proc_fs.h>
++#include <linux/sched/clock.h>
++#include <linux/seq_file.h>
++#include "trace.h"
++
++#define EVENT_TIME_MASK		0xffffffffffff
++
++enum rt_event_type {
++	hard_irq_off,
++	hard_irq_on,
++};
++
++struct rt_event {
++	unsigned long 	ip;
++	unsigned long 	parent;
++	u64		time:48, cpu:8, type:8;
++};
++
++struct rt_monitor {
++	struct rt_event 	*data;
++	u64			count;
++	unsigned int		max;
++	unsigned int		buff_size;
++	spinlock_t		lock;
++	bool			on;
++};
++
++static struct rt_monitor monitor;
++
++static notrace int
++add_rt_event(enum rt_event_type type, unsigned long ip, unsigned long parent_ip)
++{
++	struct rt_event *event;
++	ktime_t t;
++
++	spin_lock(&monitor.lock);
++
++	event = monitor.data + monitor.count % monitor.max;
++	/* write info to event */
++	event->ip = ip;
++	event->parent = parent_ip;
++	t = local_clock();
++	event->time = t & EVENT_TIME_MASK;
++	event->cpu = smp_processor_id() & 0xff ;
++	event->type = type;
++	monitor.count++;
++
++	spin_unlock(&monitor.lock);
++	return 0;
++}
++
++notrace void rt_hardirqs_off(unsigned long ip, unsigned long parent_ip)
++{
++	if (monitor.on)
++		add_rt_event(hard_irq_off, ip, parent_ip);
++}
++
++notrace void rt_hardirqs_on(unsigned long ip, unsigned long parent_ip)
++{
++	if (monitor.on)
++		add_rt_event(hard_irq_on, ip, parent_ip);
++}
++
++static ssize_t raw_data_read(struct file *file, char __user *buf,
++			     size_t len, loff_t * offset)
++{
++	loff_t pos = *offset;
++	size_t count = len;
++	size_t available, to_end;
++	struct rt_event *base;
++	size_t ret;
++
++	/* stop recording events and wait for the write to complete  */
++	monitor.on = 0;
++	spin_lock(&monitor.lock);
++
++	if (pos < 0)
++		return -EINVAL;
++
++	if (monitor.count > monitor.max) {
++		available = monitor.buff_size;
++		base = monitor.data + monitor.count % monitor.max;
++		to_end = monitor.buff_size -
++		       (monitor.count % monitor.max) * sizeof(struct rt_event);
++	} else {
++		available = monitor.count * sizeof(struct rt_event);
++		base = monitor.data;
++		to_end = available;
++	}
++
++	if (pos >= available || !len)
++		count = 0;
++
++	if (pos + len > available)
++		count = available - pos;
++
++	if (pos < to_end && pos + len > to_end)
++		count = to_end - pos;
++
++	/* whether need to wrap around */
++	if (pos < to_end)
++		ret = copy_to_user(buf, (void *)base + pos, count);
++	else
++		ret = copy_to_user(buf, (void *)monitor.data + pos - to_end, count);
++
++	spin_unlock(&monitor.lock);
++
++	*offset = pos + count - ret;
++	return count - ret;
++}
++
++static const struct file_operations raw_data_fops = {
++	.owner = THIS_MODULE,
++	.read = raw_data_read,
++	.llseek = default_llseek,
++};
++
++static __init int creat_rt_fs(void)
++{
++	struct proc_dir_entry *rt_dir;
++	struct proc_dir_entry *raw_data;
++
++	/* creat /proc/rt_event */
++	rt_dir = proc_mkdir("rt_events", NULL);
++	if (rt_dir == NULL) {
++		pr_err("Unable to create /proc/rt_events");
++		return -ENOMEM;
++	}
++
++	/* creat /proc/rt_event/raw_data */
++	raw_data = proc_create("raw_data", 0444, rt_dir, &raw_data_fops);
++	if (raw_data == NULL) {
++	pr_err("Unable to create /proc/real-time/raw_data");
++		return -ENOMEM;
++	}
++
++	proc_set_size(raw_data, monitor.buff_size);
++	return 0;
++}
++
++static __init trace_rt_init()
++{
++	int ret;
++
++	monitor.max = 1 << 20;
++	monitor.buff_size = sizeof(struct rt_event) * monitor.max;
++	monitor.data = vmalloc(monitor.buff_size);
++	if (monitor.data == NULL)
++		return -ENOMEM;
++
++	ret = creat_rt_fs();
++	if (ret)
++		return ret;
++
++	printk("rt_tracer: enabled, max_num: %d, buff_size: %d bytes\n",
++		monitor.max,
++		monitor.buff_size);
++	spin_lock_init(&monitor.lock);
++	monitor.on = 1;
++	return 0;
++}
++late_initcall(trace_rt_init)
+-- 
+2.25.1
+
