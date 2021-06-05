@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+import sys
+import os
+from tkinter import *
+
+if len(sys.argv) < 2:
+	print("usage: testflags [*.cmd]")
+	sys.exit(-1)
+
+root = Tk()
+
+# get flags in command file
+flags_status = {}
+if not os.path.exists(sys.argv[1]):
+	print(sys.argv[1] + " not exist!")
+	sys.exit(-1)
+f = open(sys.argv[1])
+cmdline = f.readline()
+cmd = cmdline[cmdline.find(' := ') + 4:]
+for flag in cmd.split(" -"):
+	if flag != 'clang':
+		flag = "-" + flag.rstrip()
+	flags_status[flag] = IntVar()
+	flags_status[flag].set(1)
+
+# GUI
+## main window and frame
+root.geometry('600x800')
+root.title("Compile Flags Test")
+
+ctrl_frame = Frame(root)
+cklist_frame = Frame(root)
+
+## control buttons
+warn_flag = 0
+def toggle_warn():
+	for flag in flags_status:
+		if '-W' in flag:
+			flags_status[flag].set(warn_flag)
+	#warn_flag = 1 if warn_flag == 0 else 0
+
+warn_bt = Button(ctrl_frame, text="-W*", command=toggle_warn)
+warn_bt.pack(side = LEFT)
+
+def gen_cmd():
+	test_cmd = ""
+	for flag in flags_status:
+		if flags_status[flag].get():
+			test_cmd = test_cmd + flag + " "
+	return test_cmd
+
+def print_cmd():
+	print("compile command")
+	print(gen_cmd())
+
+cmd_bt = Button(ctrl_frame, text="CMD", command=print_cmd)
+cmd_bt.pack(side = LEFT)
+
+def test_cmd():
+	os.system("./test.sh " + gen_cmd())
+
+test_bt = Button(ctrl_frame, text="TEST", command=test_cmd)
+test_bt.pack(side = LEFT)
+
+ctrl_frame.pack()
+
+## flags check list
+canvas=Canvas(cklist_frame, height=800, width=1500, scrollregion=(0, 0, 0, 2000))
+vbar = Scrollbar(cklist_frame, orient=VERTICAL)
+vbar.pack(side=RIGHT, fill=Y)
+vbar.config(command=canvas.yview)
+canvas.config(yscrollcommand=vbar.set)
+canvas.pack(side=LEFT, fill=BOTH)
+frame = Frame(canvas)
+canvas.create_window((300, 0), window=frame, anchor="n")
+
+for flag, stat in flags_status.items():
+	cl = Checkbutton(frame, text=flag, variable=stat)
+	cl.pack(anchor=W)
+cklist_frame.pack()
+
+root.mainloop()
